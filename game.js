@@ -1,130 +1,146 @@
-// ------- Deck Creation --------
-const suits = ['♠', '♥', '♣', '♦'];
-const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-function generateDeck() {
-  const deck = [];
-  for (let suit of suits) {
-    for (let value of values) {
-      deck.push({ suit, value, faceUp: false });
-    }
-  }
-  return deck;
-}
-
-function shuffle(deck) {
-  for (let i = deck.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [deck[i], deck[j]] = [deck[j], deck[i]];
-  }
-  return deck;
-}
-
-const deck = shuffle(generateDeck());
-
-// ------- Tableau Setup --------
-const tableau = [[], [], [], [], [], [], []];
-
-function dealToTableau(deck) {
-  for (let col = 0; col < 7; col++) {
-    for (let row = 0; row <= col; row++) {
-      const card = deck.pop();
-      card.faceUp = (row === col); // Just top card is face-up
-      tableau[col].push(card);
-    }
-  }
-}
-dealToTableau(deck);
-
-// ------- Canvas Setup --------
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-
+// Set canvas size
 canvas.width = window.innerWidth * 0.95;
-canvas.height = window.innerHeight * 0.9;
+canvas.height = window.innerHeight * 0.65;
 
-const CARD_WIDTH = 60;
-const CARD_HEIGHT = 90;
-const CARD_GAP_X = 20;
-const CARD_GAP_Y = 25;
-const TABLEAU_START_X = 50;
-const TABLEAU_START_Y = 50;
+// Dummy Card Data
+const suits = ['♠', '♥', '♦', '♣'];
+const colors = { '♠': 'black', '♣': 'black', '♥': 'red', '♦': 'red' };
+let deck = [];
+let tableau = [[], [], [], [], [], [], []];
 
-// ------- Draw Cards --------
-function drawCard(x, y, card) {
-  ctx.fillStyle = "white";
-  ctx.fillRect(x, y, CARD_WIDTH, CARD_HEIGHT);
-  ctx.strokeStyle = "black";
-  ctx.strokeRect(x, y, CARD_WIDTH, CARD_HEIGHT);
+// Initialize Timer & Moves
+let seconds = 0;
+let moves = 0;
 
-  if (card.faceUp) {
-    ctx.fillStyle = (card.suit === '♥' || card.suit === '♦') ? "red" : "black";
-    ctx.font = "16px Arial";
-    ctx.fillText(`${card.value}${card.suit}`, x + 10, y + 20);
-  } else {
-    ctx.fillStyle = "black";
-    ctx.fillRect(x, y, CARD_WIDTH, CARD_HEIGHT);
+function updateHUD() {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  document.getElementById("timer").innerText = `⏱️ ${mins}:${secs.toString().padStart(2, "0")}`;
+  document.getElementById("moves").innerText = `🎯 Moves: ${moves}`;
+}
+
+setInterval(() => {
+  seconds++;
+  updateHUD();
+}, 1000);
+
+// Create full deck
+function createDeck() {
+  for (let suit of suits) {
+    for (let value = 1; value <= 13; value++) {
+      deck.push({
+        suit,
+        value,
+        faceUp: false,
+        color: colors[suit]
+      });
+    }
+  }
+  // Shuffle
+  deck.sort(() => Math.random() - 0.5);
+}
+
+// Deal into tableau
+function dealCards() {
+  for (let i = 0; i < tableau.length; i++) {
+    for (let j = 0; j <= i; j++) {
+      const card = deck.pop();
+      card.faceUp = (j === i); // Last card is face up
+      tableau[i].push(card);
+    }
   }
 }
 
+// Draw cards
 function drawTableau() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (let col = 0; col < tableau.length; col++) {
-    let x = TABLEAU_START_X + col * (CARD_WIDTH + CARD_GAP_X);
-    for (let row = 0; row < tableau[col].length; row++) {
-      let y = TABLEAU_START_Y + row * CARD_GAP_Y;
-      drawCard(x, y, tableau[col][row]);
-    }
-  }
+  const cardWidth = 60;
+  const cardHeight = 80;
+  const spacingX = 70;
+  const spacingY = 25;
+  const startX = 30;
+
+  tableau.forEach((col, colIndex) => {
+    col.forEach((card, rowIndex) => {
+      const x = startX + colIndex * spacingX;
+      const y = 50 + rowIndex * spacingY;
+
+      ctx.fillStyle = card.faceUp ? "#fff" : "#444";
+      ctx.fillRect(x, y, cardWidth, cardHeight);
+      ctx.strokeStyle = "#000";
+      ctx.strokeRect(x, y, cardWidth, cardHeight);
+
+      if (card.faceUp) {
+        ctx.fillStyle = card.color;
+        ctx.font = "18px Arial";
+        ctx.fillText(`${card.value}${card.suit}`, x + 10, y + 25);
+      }
+    });
+  });
 }
-drawTableau();
 
-// ------- Touch Drag System --------
+// Touch Dragging
 let draggingCard = null;
-let dragOffsetX = 0;
-let dragOffsetY = 0;
 
-canvas.addEventListener("touchstart", function(e) {
+canvas.addEventListener("touchstart", function (e) {
   const touch = e.touches[0];
-  const touchX = touch.clientX;
-  const touchY = touch.clientY;
+  const x = touch.clientX;
+  const y = touch.clientY;
+
+  const cardWidth = 60;
+  const cardHeight = 80;
+  const spacingX = 70;
+  const spacingY = 25;
+  const startX = 30;
 
   for (let col = 0; col < tableau.length; col++) {
-    const x = TABLEAU_START_X + col * (CARD_WIDTH + CARD_GAP_X);
     for (let row = 0; row < tableau[col].length; row++) {
-      const y = TABLEAU_START_Y + row * CARD_GAP_Y;
       const card = tableau[col][row];
+      const cx = startX + col * spacingX;
+      const cy = 50 + row * spacingY;
 
       if (
-        card.faceUp &&
-        touchX >= x &&
-        touchX <= x + CARD_WIDTH &&
-        touchY >= y &&
-        touchY <= y + CARD_HEIGHT
+        x >= cx &&
+        x <= cx + cardWidth &&
+        y >= cy &&
+        y <= cy + cardHeight &&
+        card.faceUp
       ) {
-        draggingCard = { card, col, row };
-        dragOffsetX = touchX - x;
-        dragOffsetY = touchY - y;
+        draggingCard = { col, row };
         return;
       }
     }
   }
 });
 
-canvas.addEventListener("touchmove", function(e) {
-  if (!draggingCard) return;
-  e.preventDefault();
-  const touch = e.touches[0];
-  const x = touch.clientX - dragOffsetX;
-  const y = touch.clientY - dragOffsetY;
-
-  drawTableau();
-  drawCard(x, y, draggingCard.card);
-});
-
-canvas.addEventListener("touchend", function(e) {
+canvas.addEventListener("touchend", function (e) {
   if (draggingCard) {
+    const { col, row } = draggingCard;
+
+    // Remove dragged cards
+    const movedCards = tableau[col].splice(row);
+
+    // Drop back to original for now
+    tableau[col].push(...movedCards);
+
+    // Flip next card if any
+    const lastCard = tableau[col][tableau[col].length - movedCards.length - 1];
+    if (lastCard && !lastCard.faceUp) {
+      lastCard.faceUp = true;
+    }
+
     draggingCard = null;
+    moves++;
+    updateHUD();
     drawTableau();
   }
 });
+
+// Initialize
+createDeck();
+dealCards();
+drawTableau();
+updateHUD();
