@@ -39,7 +39,6 @@ function createDeck() {
       });
     }
   }
-  // Shuffle
   deck.sort(() => Math.random() - 0.5);
 }
 
@@ -48,7 +47,7 @@ function dealCards() {
   for (let i = 0; i < tableau.length; i++) {
     for (let j = 0; j <= i; j++) {
       const card = deck.pop();
-      card.faceUp = (j === i); // Last card is face up
+      card.faceUp = (j === i);
       tableau[i].push(card);
     }
   }
@@ -122,11 +121,9 @@ canvas.addEventListener("touchend", function (e) {
 
     // Remove dragged cards
     const movedCards = tableau[col].splice(row);
-
-    // Drop back to original for now
     tableau[col].push(...movedCards);
 
-    // Flip next card if any
+    // Flip next card if needed
     const lastCard = tableau[col][tableau[col].length - movedCards.length - 1];
     if (lastCard && !lastCard.faceUp) {
       lastCard.faceUp = true;
@@ -136,10 +133,23 @@ canvas.addEventListener("touchend", function (e) {
     moves++;
     updateHUD();
     drawTableau();
+
+    // ✅ Check win
+    checkWin();
   }
 });
 
-// Initialize
+// ✅ Win Checker
+function checkWin() {
+  const allFaceUp = tableau.every(col => col.every(card => card.faceUp));
+  if (allFaceUp) {
+    setTimeout(() => {
+      alert("🎉 You Win! Well played.");
+    }, 500);
+  }
+}
+
+// Init
 createDeck();
 dealCards();
 drawTableau();
